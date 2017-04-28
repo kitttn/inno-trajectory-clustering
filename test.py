@@ -7,7 +7,7 @@ def euclen(p1, p2):
     return ((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2) ** (1 / 2)
 
 
-#perpendicluar distance between points
+# perpendicluar distance between points
 def perpdist(l1: sp.Line, l2: sp.Line):
     p1 = sp.Point2D(l1.projection(l2.p1))
     p2 = sp.Point2D(l1.projection(l2.p2))
@@ -19,6 +19,16 @@ def perpdist(l1: sp.Line, l2: sp.Line):
     return (d1 ** 2 + d2 ** 2) / (d1 + d2)
 
 
+def pardist(l1: sp.Line, l2: sp.Line):
+    p1 = sp.Point2D(l1.projection(l2.p1))
+    p2 = sp.Point2D(l1.projection(l2.p2))
+    print("Points:", p1, p2)
+    d1 = euclen(p1, l1.p1)
+    d2 = euclen(p2, l1.p2)
+    print("Dist: ", d1, d2)
+    return min(d1, d2)
+
+
 # angle distance between points?
 def angdist(l1: sp.Line, l2: sp.Line):
     angle_r = float(l1.angle_between(l2))
@@ -28,6 +38,10 @@ def angdist(l1: sp.Line, l2: sp.Line):
         return l2_length * math.sin(angle_g)
     else:
         return l2_length
+
+
+def dist(l1: sp.Line, l2: sp.Line):
+    return perpdist(l1, l2) + angdist(l1, l2) + pardist(l1, l2)
 
 
 def mdlpar(t):
@@ -82,10 +96,7 @@ def atp(trajectory):
     return output
 
 
-
 l1 = sp.Line((1, 1), (5, 1))
 l2 = sp.Line((2, 2), (4, 4))
 d = angdist(l1, l2)
 print(d)
-
-#run()
