@@ -4,7 +4,7 @@ from queue import Queue
 import sympy as sp
 from mpmath import *
 
-from classes import Segment
+from classes import Segment, Cluster
 
 EPSILON = 1
 
@@ -58,20 +58,34 @@ def angdist(l1: sp.Line, l2: sp.Line):
 
 
 def line_segment_clustering(trajectory, eps: float, min_lines: int):
-    segments = [Segment(_, trajectory[_].p1, trajectory[_].p2) for _ in trajectory]
-    clusterId = 0
+    segments = [Segment(trajectory[_].p1, trajectory[_].p2, _) for _ in trajectory]
+    cluster_id = 0
     queue = Queue()
     for L in segments:
         if L.cluster == -1:
             neighbs = eps_neigh(L, segments, EPSILON)
             if len(neighbs) >= min_lines:
-                L.cluster = clusterId
+                L.cluster = cluster_id
                 filtered = filter(lambda x: x != L, neighbs)[:]
                 queue += filtered
-                expand_cluster(queue, segments, clusterId, eps, min_lines)
-                clusterId += 1
+                expand_cluster(queue, segments, cluster_id, eps, min_lines)
+                cluster_id += 1
             else:
                 L.cluster = math.inf
+
+    clusters = {}
+    for L in segments:
+        if clusters[L.cluster] is None:
+            clusters[L.cluster] = Cluster()
+        clusters[L.cluster].add(L)
+
+    for (_, cluster) in clusters:
+        participating = [seg.traj_id for seg in cluster.segments]
+        PTR = len(set(participating))
+
+        print("Count: ", PTR)
+        if PTR < min_lines:
+            del clusters[_]
 
 
 def dist(l1: sp.Line, l2: sp.Line):
