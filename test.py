@@ -1,5 +1,5 @@
 import math
-
+from mpmath import *
 import sympy as sp
 
 
@@ -21,7 +21,13 @@ def perpdist(l1: sp.Line, l2: sp.Line):
 
 # angle distance between points?
 def angdist(l1: sp.Line, l2: sp.Line):
-    return 1
+    angle_r = float(l1.angle_between(l2))
+    angle_g = mp.degrees(angle_r) % 180
+    l2_length = sqrt(l2.p2.x - l2.p1.x)**2 + (l2.p2.y - l2.p1.y)
+    if  angle_g >= 0 and angle_g < 90:
+        return l2_length * math.sin(angle_g)
+    else:
+        return l2_length
 
 
 def mdlpar(t):
@@ -76,10 +82,10 @@ def atp(trajectory):
     return output
 
 
-#
-# l1 = sp.Line((1, 1), (5, 1))
-# l2 = sp.Line((2, 2), (4, 4))
-# d = perpdist(l1, l2)
-# print(d)
 
-run()
+l1 = sp.Line((1, 1), (5, 1))
+l2 = sp.Line((2, 2), (4, 4))
+d = angdist(l1, l2)
+print(d)
+
+#run()
