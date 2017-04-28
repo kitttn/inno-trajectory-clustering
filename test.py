@@ -20,25 +20,27 @@ def eps_neigh(m, D, eps):
             continue
         else:
             if dist(m, d) < eps:
-                N_eps += d
+                N_eps.append(d)
     return N_eps
 
 
-# perpendicluar distance between points
+# perpendicular distance between points
 def perpdist(l1: sp.Line, l2: sp.Line):
-    p1 = sp.Point2D(l1.projection(l2.p1))
-    p2 = sp.Point2D(l1.projection(l2.p2))
+    p1 = sp.Point2D(l1.projection(l2.p1), evaluate=False)
+    p2 = sp.Point2D(l1.projection(l2.p2), evaluate=False)
     print("Points:", p1, p2)
     d1 = euclen(p1, l2.p1)
     d2 = euclen(p2, l2.p2)
     print("Distance 1: ", d1)
     print("Distance 2: ", d2)
+    if d1 + d2 == 0:
+        return 1
     return (d1 ** 2 + d2 ** 2) / (d1 + d2)
 
 
 def pardist(l1: sp.Line, l2: sp.Line):
-    p1 = sp.Point2D(l1.projection(l2.p1))
-    p2 = sp.Point2D(l1.projection(l2.p2))
+    p1 = sp.Point2D(l1.projection(l2.p1), evaluate=False)
+    p2 = sp.Point2D(l1.projection(l2.p2), evaluate=False)
     print("Points:", p1, p2)
     d1 = euclen(p1, l1.p1)
     d2 = euclen(p2, l1.p2)
@@ -87,6 +89,8 @@ def line_segment_clustering(trajectory, eps: float, min_lines: int):
         if PTR < min_lines:
             del clusters[_]
 
+    return clusters
+
 
 def dist(l1: sp.Line, l2: sp.Line):
     return perpdist(l1, l2) + angdist(l1, l2) + pardist(l1, l2)
@@ -104,8 +108,8 @@ def mdlpar(t):
         for i in range(0, len(pts) - 1):
             px = pts[i]
             py = pts[i + 1]
-            perpsum += perpdist(sp.Line(ps, pe), sp.Line(px, py))
-            angsum += angdist(sp.Line(ps, pe), sp.Line(px, py))
+            perpsum += perpdist(sp.Line(ps, pe, evaluate=False), sp.Line(px, py, evaluate=False))
+            angsum += angdist(sp.Line(ps, pe, evaluate=False), sp.Line(px, py, evaluate=False))
 
         return math.log(perpsum) + math.log(angsum)
 
@@ -119,26 +123,51 @@ def mdlnopar(t):
     return lh(t[0], t[len(t) - 1])
 
 
-def expand_cluster(Q, D, clusterId: int, eps: float, minLines: int):
+def expand_cluster(Q, D, cluster_id: int, eps: float, min_lines: int):
     while not Q.empty():
-        N = eps_neigh(Q.get())
-        if len(N) >= minLines:
+        N = eps_neigh(Q.get(), D, eps)
+        if len(N) >= min_lines:
             for X in N:
                 if X.cluster == -1 or X.cluster == math.inf:
-                    X.cluster = clusterId
+                    X.cluster = cluster_id
                 if X.cluster == -1:
                     Q.put(X)
         Q.get()
 
 
 def traclus(trajectories):
+    D = set()
     for TR in trajectories:
         L = atp(TR)
+        D += L
+
+    O = line_segment_clustering(D, EPSILON, 1)
+    print(O)
+
+
+def get_trajectories():
+    curr = []
+    arr = []
+
+    f = open('paths.txt', 'r')
+    for line in f:
+        if len(line) > 2:
+            parsed = [float(x) for x in line.strip().split(" ")]
+            nums = sp.Point2D(parsed[0], parsed[1], evaluate=False)
+            curr.append(nums)
+        else:
+            # print(curr)
+            arr.append(curr)
+            curr = []
+            break
+
+    print("Read trajectories: ", len(arr))
+    print("Example: ", arr[0])
+    return arr
 
 
 def atp(trajectory):
-    output = []
-    output += trajectory[0]
+    output = [trajectory[0]]
     start, length = (0, 1)
     while start + length < len(trajectory):
         curr = start + length
@@ -146,17 +175,15 @@ def atp(trajectory):
         costpar = mdlpar(traj)
         costnopar = mdlnopar(traj)
         if costpar > costnopar:
-            output += trajectory[curr - 1]
+            output.append(trajectory[curr - 1])
             start = curr - 1
             length = 1
         else:
             length += 1
 
-    output += trajectory[len(trajectory) - 1]
+    output.append(trajectory[len(trajectory) - 1])
     return output
 
 
-l1 = sp.Line((1, 1), (5, 1))
-l2 = sp.Line((2, 2), (4, 4))
-d = angdist(l1, l2)
-print(d)
+traj = get_trajectories()
+traclus(traj)
