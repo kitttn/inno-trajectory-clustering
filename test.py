@@ -48,21 +48,20 @@ def angdist(l1: sp.Line, l2: sp.Line):
 
 
 def line_segment_clustering(trajectory, eps: float, min_lines: int):
-    segmts = [Segment(_, trajectory[_].p1, trajectory[_].p2) for _ in trajectory]
+    segments = [Segment(_, trajectory[_].p1, trajectory[_].p2) for _ in trajectory]
     clusterId = 0
     queue = []
-    clusters = [-1 for _ in segmts]
-    for i in range(0, len(segmts)):
-        if clusters[i] == -1:
-            neighbs = eps_neigh(segmts[i], segmts, EPSILON)
+    for L in segments:
+        if L.cluster == -1:
+            neighbs = eps_neigh(L, segments, EPSILON)
             if len(neighbs) >= min_lines:
-                for _ in range(0, len(neighbs)):
-                    clusters[_] = clusterId
-
-                filtered = filter(lambda x: x != segmts[i], neighbs)[:]
+                L.cluster = clusterId
+                filtered = filter(lambda x: x != L, neighbs)[:]
                 queue += filtered
-
-
+                expand_cluster(queue, clusterId, eps, min_lines)
+                clusterId += 1
+            else:
+                L.cluster = math.inf
 
 
 def dist(l1: sp.Line, l2: sp.Line):
