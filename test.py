@@ -1,6 +1,8 @@
 import math
-from mpmath import *
+from queue import Queue
+
 import sympy as sp
+from mpmath import *
 
 from classes import Segment
 
@@ -18,7 +20,7 @@ def eps_neigh(m, D, eps):
             continue
         else:
             if dist(m, d) < eps:
-                N_eps.add(d)
+                N_eps += d
     return N_eps
 
 
@@ -44,9 +46,6 @@ def pardist(l1: sp.Line, l2: sp.Line):
     return min(d1, d2)
 
 
-def eps_neigh(m, D, eps):
-    return []
-
 # angle distance between points?
 def angdist(l1: sp.Line, l2: sp.Line):
     angle_r = float(l1.angle_between(l2))
@@ -61,7 +60,7 @@ def angdist(l1: sp.Line, l2: sp.Line):
 def line_segment_clustering(trajectory, eps: float, min_lines: int):
     segments = [Segment(_, trajectory[_].p1, trajectory[_].p2) for _ in trajectory]
     clusterId = 0
-    queue = []
+    queue = Queue()
     for L in segments:
         if L.cluster == -1:
             neighbs = eps_neigh(L, segments, EPSILON)
@@ -69,7 +68,7 @@ def line_segment_clustering(trajectory, eps: float, min_lines: int):
                 L.cluster = clusterId
                 filtered = filter(lambda x: x != L, neighbs)[:]
                 queue += filtered
-                expand_cluster(queue, clusterId, eps, min_lines)
+                expand_cluster(queue, segments, clusterId, eps, min_lines)
                 clusterId += 1
             else:
                 L.cluster = math.inf
@@ -106,7 +105,7 @@ def mdlnopar(t):
     return lh(t[0], t[len(t) - 1])
 
 
-def expand_cluster(Q, clusterId: int, eps: float, minLines: int):
+def expand_cluster(Q, D, clusterId: int, eps: float, minLines: int):
     while not Q.empty():
         N = eps_neigh(Q.get())
         if len(N) >= minLines:
@@ -116,7 +115,6 @@ def expand_cluster(Q, clusterId: int, eps: float, minLines: int):
                 if X.cluster == -1:
                     Q.put(X)
         Q.get()
-
 
 
 def traclus(trajectories):
