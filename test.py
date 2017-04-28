@@ -7,6 +7,17 @@ def euclen(p1, p2):
     return ((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2) ** (1 / 2)
 
 
+def eps_neigh(m, D, eps):
+    N_eps = []
+    for d in D:
+        if d.id == m.id:
+            continue
+        else:
+            if dist(m, d) < eps:
+                N_eps.add(d)
+    return N_eps
+
+
 # perpendicluar distance between points
 def perpdist(l1: sp.Line, l2: sp.Line):
     p1 = sp.Point2D(l1.projection(l2.p1))
@@ -33,7 +44,7 @@ def pardist(l1: sp.Line, l2: sp.Line):
 def angdist(l1: sp.Line, l2: sp.Line):
     angle_r = float(l1.angle_between(l2))
     angle_g = mp.degrees(angle_r) % 180
-    l2_length = sqrt(l2.p2.x - l2.p1.x)**2 + (l2.p2.y - l2.p1.y)
+    l2_length = euclen(l2.p1, l2.p2)
     if  angle_g >= 0 and angle_g < 90:
         return l2_length * math.sin(angle_g)
     else:
@@ -72,7 +83,16 @@ def mdlnopar(t):
 
 
 def expand_cluster(Q, clusterId: int, eps: float, minLines: int):
-    pass
+    while not Q.empty():
+        N = eps_neigh(Q.get())
+        if len(N) >= minLines:
+            for X in N:
+                if X.cluster == -1 or X.cluster == math.inf:
+                    X.cluster = clusterId
+                if X.cluster == -1:
+                    Q.put(X)
+        Q.get()
+
 
 
 def traclus(trajectories):
