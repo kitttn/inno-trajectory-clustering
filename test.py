@@ -2,6 +2,10 @@ import math
 from mpmath import *
 import sympy as sp
 
+from classes import Segment
+
+EPSILON = 1
+
 
 def euclen(p1, p2):
     return ((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2) ** (1 / 2)
@@ -29,15 +33,36 @@ def pardist(l1: sp.Line, l2: sp.Line):
     return min(d1, d2)
 
 
+def eps_neigh(m, D, eps):
+    return []
+
 # angle distance between points?
 def angdist(l1: sp.Line, l2: sp.Line):
     angle_r = float(l1.angle_between(l2))
     angle_g = mp.degrees(angle_r) % 180
     l2_length = sqrt(l2.p2.x - l2.p1.x)**2 + (l2.p2.y - l2.p1.y)
-    if  angle_g >= 0 and angle_g < 90:
+    if 0 <= angle_g < 90:
         return l2_length * math.sin(angle_g)
     else:
         return l2_length
+
+
+def line_segment_clustering(trajectory, eps: float, min_lines: int):
+    segmts = [Segment(_, trajectory[_].p1, trajectory[_].p2) for _ in trajectory]
+    clusterId = 0
+    queue = []
+    clusters = [-1 for _ in segmts]
+    for i in range(0, len(segmts)):
+        if clusters[i] == -1:
+            neighbs = eps_neigh(segmts[i], segmts, EPSILON)
+            if len(neighbs) >= min_lines:
+                for _ in range(0, len(neighbs)):
+                    clusters[_] = clusterId
+
+                filtered = filter(lambda x: x != segmts[i], neighbs)[:]
+                queue += filtered
+
+
 
 
 def dist(l1: sp.Line, l2: sp.Line):
