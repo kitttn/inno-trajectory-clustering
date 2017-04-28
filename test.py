@@ -71,6 +71,10 @@ def mdlnopar(t):
     return lh(t[0], t[len(t) - 1])
 
 
+def expand_cluster(Q, clusterId: int, eps: float, minLines: int):
+    pass
+
+
 def traclus(trajectories):
     for TR in trajectories:
         L = atp(TR)
