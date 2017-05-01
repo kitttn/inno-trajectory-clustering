@@ -28,7 +28,8 @@ class Trajectory:
 
 
 class Cluster:
-    def __init__(self):
+    def __init__(self, clust_id):
+        self.clust_id = clust_id
         self.segments = []
 
     def add(self, s: Segment):

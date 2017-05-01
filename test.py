@@ -1,12 +1,17 @@
+import asyncio
 import math
+import threading
+from concurrent.futures.thread import ThreadPoolExecutor
 from queue import Queue
+from typing import List
 
 import sympy as sp
 from mpmath import *
 
-from classes import Segment, Cluster, Trajectory
+from classes import Segment, Cluster
 
 EPSILON = 1
+MIN_LINES = 3
 
 
 def euclen(p1, p2):
@@ -59,37 +64,60 @@ def angdist(l1: sp.Line, l2: sp.Line):
         return l2_length
 
 
-def line_segment_clustering(segments, eps: float, min_lines: int):
-    cluster_id = 0
+def process_segment(L, segments, cluster_id):
     queue = Queue()
-    for L in segments:
-        if L.cluster == -1:
-            neighbs = eps_neigh(L, segments, EPSILON)
-            if len(neighbs) >= min_lines:
-                L.cluster = cluster_id
-                filtered = list(filter(lambda x: x != L, neighbs))
-                for x in filtered:
-                    queue.put(x)
-                expand_cluster(queue, segments, cluster_id, eps, min_lines)
-                cluster_id += 1
-            else:
-                L.cluster = math.inf
+    if L.cluster == -1:
+        print("Calculating neighbors...")
+        neighbs = eps_neigh(L, segments, EPSILON)
+        # print("Neighbors: %s" % neighbs)
+        if len(neighbs) >= MIN_LINES:
+            print("Creating cluster...")
+            L.cluster = cluster_id
+            filtered = list(filter(lambda x: x != L, neighbs))
+            for x in filtered:
+                queue.put(x)
+            sout("[Expanding cluster...]")
+            expand_cluster(queue, segments, cluster_id, eps, MIN_LINES)
+            sout("[Expansion successful!]")
+        else:
+            L.cluster = math.inf
+    else:
+        sout("[Already processed!]")
+
+
+async def line_segment_clustering(segments) -> List[Cluster]:
+    total = len(segments)
+    sout("S Total: %d" % total)
+    els = [loop.run_in_executor(executor, process_segment, segments[_], segments, _) for _ in range(total)]
+    await asyncio.gather(*els)
 
     clusters = {}
     for L in segments:
+        clustId = L.cluster
+        if clustId == math.inf:
+            continue
+
         if L.cluster not in clusters:
-            clusters[L.cluster] = Cluster()
+            sout("[Adding clusterId=%d]" % L.cluster)
+            clusters[L.cluster] = Cluster(L.cluster)
         clusters[L.cluster].add(L)
+
+    result = []
 
     for _, cluster in clusters.items():
         participating = [seg.traj_id for seg in cluster.segments]
         PTR = len(set(participating))
 
-        print("Count: ", PTR)
-        if PTR < min_lines:
-            del clusters[_]
+        if PTR >= MIN_LINES:
+            result.append(cluster)
+        else:
+            sout("[Not added, size=%d]" % PTR)
 
-    return clusters
+    return result
+
+
+def sout(data):
+    print("{%s}:%s" % (threading.current_thread().getName(), data))
 
 
 def dist(l1: sp.Line, l2: sp.Line):
@@ -125,29 +153,33 @@ def mdlnopar(t):
 
 def expand_cluster(Q, D, cluster_id: int, eps: float, min_lines: int):
     while not Q.empty():
+        print("{%s}:[ Q size: %d ]" % (threading.current_thread().getName(), Q.qsize()))
         N = eps_neigh(Q.get(), D, eps)
+        # print("{%s}:[ N size: %d ]" % (threading.current_thread().getName(), len(N)))
         if len(N) >= min_lines:
             for X in N:
                 if X.cluster == -1 or X.cluster == math.inf:
-                    X.cluster = cluster_id
-                if X.cluster == -1:
                     Q.put(X)
-        Q.get()
+                    X.cluster = cluster_id
 
 
-def traclus(trajectories):
+async def traclus(trajectories):
     D = []
     num = 1
-    for TR in trajectories:
-        L = approx_trajectory_partitioning(TR)
-        D += create_trajectory(num, L)
+
+    LS = [loop.run_in_executor(executor, approx_trajectory_partitioning, TR) for TR in trajectories]
+    els_processed = await asyncio.gather(*LS)
+
+    for TR in els_processed:
+        print("creating trajectory...")
+        D += create_trajectory(num, TR)
         print("Finished", num, "out of", len(trajectories))
         num += 1
 
-    O = line_segment_clustering(D, EPSILON, 1)
+    O = await line_segment_clustering(D)
 
-    for key, value in O.items():
-        print(key, ":", value)
+    for cluster in O:
+        print(cluster.clust_id, ":", cluster.segments)
 
 
 def create_trajectory(id, points):
@@ -162,7 +194,7 @@ def get_trajectories():
     curr = []
     arr = []
 
-    f = open('paths.txt.copy', 'r')
+    f = open('paths.txt', 'r')
     for line in f:
         if len(line) > 2:
             parsed = [float(x) for x in line.strip().split(" ")]
@@ -172,7 +204,9 @@ def get_trajectories():
             # print(curr)
             arr.append(curr)
             curr = []
-            break
+
+    if len(curr) > 0:
+        arr.append(curr)
 
     print("Read trajectories: ", len(arr))
     print("Example: ", arr[0])
@@ -180,10 +214,12 @@ def get_trajectories():
 
 
 def approx_trajectory_partitioning(trajectory):
+    print("approximating...")
     output = [trajectory[0]]
     start, length = (0, 1)
+    total = len(trajectory)
     while start + length < len(trajectory):
-        print("Processing", start + length, "out of", len(trajectory))
+        print("{%s}:[%d/%d]" % (threading.current_thread().getName(), start, total))
         curr = start + length
         traj = trajectory[start:curr + 1]
         costpar = mdlpar(traj)
@@ -199,5 +235,11 @@ def approx_trajectory_partitioning(trajectory):
     return output
 
 
-traj = get_trajectories()
-traclus(traj)
+async def run():
+    traj = get_trajectories()
+    await traclus(traj)
+
+
+executor = ThreadPoolExecutor(32, "Thread")
+loop = asyncio.get_event_loop()
+loop.run_until_complete(run())
