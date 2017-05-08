@@ -32,7 +32,7 @@ public class ClusterGen {
 	public static final int UNCLASSIFIED = -2;
 	public static final int NOISE = -1;
 
-	private static final double MIN_LINESEGMENT_LENGTH = 50.0;
+	private static final double MIN_LINESEGMENT_LENGTH = 0.001;
 
 	private static final int MDL_COST_ADWANTAGE = 25;
 	private static final int INT_MAX = Integer.MAX_VALUE;
